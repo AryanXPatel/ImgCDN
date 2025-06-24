@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ImgCDN Directory Listing</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; background: #f7f7f7; }
+    h2 { margin-top: 0; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin-bottom: .5em; }
+    a { text-decoration: none; color: #1a0dab; }
+    a:hover { text-decoration: underline; }
+    .breadcrumb { margin-bottom: 1em; }
+    .breadcrumb a { color: #555; margin-right: 5px; }
+    .breadcrumb span { color: #888; }
+  </style>
+</head>
+<body>
+  <h2>ImgCDN Directory Listing</h2>
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <ul id="file-list"></ul>
+  <script>
+    const owner = "AryanXPatel";
+    const repo = "ImgCDN";
+    const apiBase = `https://api.github.com/repos/${owner}/${repo}/contents/`;
+    const rawBase = `https://raw.githubusercontent.com/${owner}/${repo}/main/`;
+
+    function getPathParts(path) {
+      if (!path) return [];
+      return path.split('/').filter(Boolean);
+    }
+
+    function renderBreadcrumb(path) {
+      const parts = getPathParts(path);
+      let html = `<a href="#" data-path="">Home</a>`;
+      let runningPath = '';
+      parts.forEach((part, idx) => {
+        runningPath += (runningPath ? '/' : '') + part;
+        html += ` / <a href="#" data-path="${runningPath}">${part}</a>`;
+      });
+      document.getElementById('breadcrumb').innerHTML = html;
+      Array.from(document.querySelectorAll('.breadcrumb a')).forEach(a => {
+        a.onclick = (e) => {
+          e.preventDefault();
+          loadDir(a.getAttribute('data-path'));
+        };
+      });
+    }
+
+    async function loadDir(path = "") {
+      renderBreadcrumb(path);
+      const res = await fetch(apiBase + path);
+      if (!res.ok) {
+        document.getElementById('file-list').innerHTML = `<li>Failed to load directory.</li>`;
+        return;
+      }
+      const items = await res.json();
+      items.sort((a, b) => {
+        if (a.type === b.type) return a.name.localeCompare(b.name);
+        return a.type === 'dir' ? -1 : 1;
+      });
+      document.getElementById('file-list').innerHTML = items.map(item => {
+        if (item.type === 'dir') {
+          return `<li>📁 <a href="#" data-path="${item.path}">${item.name}/</a></li>`;
+        } else {
+          const fileUrl = rawBase + item.path;
+          return `<li>📄 <a href="${fileUrl}" target="_blank">${item.name}</a></li>`;
+        }
+      }).join('');
+      Array.from(document.querySelectorAll('#file-list a[data-path]')).forEach(a => {
+        a.onclick = (e) => {
+          e.preventDefault();
+          loadDir(a.getAttribute('data-path'));
+        };
+      });
+    }
+
+    loadDir();
+  </script>
+</body>
+</html>
